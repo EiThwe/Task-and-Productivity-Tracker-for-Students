@@ -10,5 +10,5 @@ body,
 
 body {
   margin: 0;
-  @apply bg-slate-950 text-slate-50 font-sans antialiased;
+  @apply bg-gray-50 text-gray-900 font-sans antialiased;
 }

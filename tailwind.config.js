@@ -4,20 +4,30 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["system-ui", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Lexend", "system-ui", "sans-serif"],
       },
       colors: {
-        background: "#0f172a",
-        surface: "#020617",
-        muted: "#1e293b",
-        accent: "#38bdf8",
-        accentSoft: "#0f172a",
+        primary: {
+          DEFAULT: "#121f3e",
+          50: "#f0f4ff",
+          100: "#e0e8ff",
+          200: "#c7d4fe",
+          300: "#a3b8fc",
+          400: "#7a94f8",
+          500: "#121f3e",
+          600: "#0f1a33",
+          700: "#0c1528",
+          800: "#09101d",
+          900: "#060b12",
+        },
       },
       boxShadow: {
-        subtle: "0 18px 45px rgba(15,23,42,0.55)",
+        subtle: "0 4px 20px rgba(18,31,62,0.08)",
+        card: "0 2px 12px rgba(18,31,62,0.06)",
       },
       borderRadius: {
-        xl: "1.25rem",
+        xl: "1rem",
+        "2xl": "1.25rem",
       },
     },
   },
