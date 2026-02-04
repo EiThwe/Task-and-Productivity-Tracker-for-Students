@@ -449,6 +449,7 @@ function MainApp({ user, onLogout }) {
               assignments={assignments}
               subjects={subjects}
               getSubjectName={getSubjectName}
+              onNavigateToTimer={() => setActiveView(VIEWS.TIMER)}
             />
           )}
           {activeView === VIEWS.SUBJECTS && (
@@ -554,13 +555,25 @@ function ConfirmDialog({ isOpen, onClose, onConfirm, title, message }) {
 // ============================================================
 // DASHBOARD VIEW
 // ============================================================
-function DashboardView({ assignments, subjects, getSubjectName }) {
+function DashboardView({
+  assignments,
+  subjects,
+  getSubjectName,
+  onNavigateToTimer,
+}) {
+  const [barChartPeriod, setBarChartPeriod] = useState("weekly");
+  const [pieChartPeriod, setPieChartPeriod] = useState("weekly");
+
+  // Calculate totals
   const totalTasks = assignments.reduce((acc, a) => acc + a.tasks.length, 0);
   const completedTasks = assignments.reduce(
     (acc, a) => acc + a.tasks.filter((t) => t.completed).length,
     0
   );
+  const progressPercent =
+    totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
+  // Tasks by subject for pie chart
   const tasksBySubject = subjects.map((subject) => {
     const subjectAssignments = assignments.filter(
       (a) => a.subjectId === subject.id
@@ -576,6 +589,55 @@ function DashboardView({ assignments, subjects, getSubjectName }) {
     return { ...subject, total, completed };
   });
 
+  // Calculate subject percentages for pie chart
+  const totalSubjectTasks = tasksBySubject.reduce(
+    (acc, s) => acc + s.completed,
+    0
+  );
+  const subjectPercentages = tasksBySubject.map((s) => ({
+    ...s,
+    percentage:
+      totalSubjectTasks > 0
+        ? Math.round((s.completed / totalSubjectTasks) * 100)
+        : 0,
+  }));
+
+  // Mock data for weekly/monthly bar charts
+  const weeklyBarData = [
+    { label: "Mon", completed: 3, total: 5 },
+    { label: "Tue", completed: 4, total: 6 },
+    { label: "Wed", completed: 2, total: 4 },
+    { label: "Thu", completed: 5, total: 5 },
+    { label: "Fri", completed: 3, total: 7 },
+    { label: "Sat", completed: 1, total: 2 },
+    { label: "Sun", completed: 0, total: 1 },
+  ];
+
+  const monthlyBarData = [
+    { label: "Week 1", completed: 12, total: 20 },
+    { label: "Week 2", completed: 18, total: 25 },
+    { label: "Week 3", completed: 15, total: 22 },
+    { label: "Week 4", completed: 8, total: 15 },
+  ];
+
+  const barChartData =
+    barChartPeriod === "weekly" ? weeklyBarData : monthlyBarData;
+  const maxBarValue = Math.max(...barChartData.map((d) => d.total), 1);
+
+  // Get daily tasks
+  const dailyTasks = assignments
+    .flatMap((a) =>
+      a.tasks.map((t) => ({
+        ...t,
+        assignmentTitle: a.title,
+        subject: getSubjectName(a.subjectId),
+        priority: a.priority,
+        assignmentId: a.id,
+      }))
+    )
+    .filter((t) => !t.completed)
+    .slice(0, 6);
+
   return (
     <div className="flex flex-col gap-5 pb-6">
       <header>
@@ -587,279 +649,358 @@ function DashboardView({ assignments, subjects, getSubjectName }) {
         </h1>
       </header>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        {/* Overall Progress */}
-        <Card title="Overall Progress" description="Total tasks completed.">
-          <div className="flex flex-col items-center gap-3 py-4">
-            <div className="relative flex h-28 w-28 items-center justify-center">
-              <svg className="h-28 w-28 -rotate-90 transform">
-                <circle
-                  cx="56"
-                  cy="56"
-                  r="48"
-                  stroke="#e5e7eb"
-                  strokeWidth="10"
-                  fill="none"
-                />
-                <circle
-                  cx="56"
-                  cy="56"
-                  r="48"
-                  stroke="#121f3e"
-                  strokeWidth="10"
-                  fill="none"
-                  strokeDasharray={`${
-                    totalTasks > 0 ? (completedTasks / totalTasks) * 301 : 0
-                  } 301`}
-                />
-              </svg>
-              <span className="absolute text-xl font-bold text-[#121f3e]">
-                {totalTasks > 0
-                  ? Math.round((completedTasks / totalTasks) * 100)
-                  : 0}
-                %
-              </span>
-            </div>
-            <p className="text-xs text-gray-500">
-              {completedTasks} of {totalTasks} tasks completed
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        {/* Daily To-Do List */}
+        <div className="lg:col-span-8 flex flex-col rounded-2xl bg-white p-5 shadow-card">
+          <header className="mb-4">
+            <h2 className="text-sm font-semibold text-[#121f3e]">
+              Daily To-Do
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Today's tasks to complete.
             </p>
-          </div>
-        </Card>
+          </header>
 
-        {/* Quick Stats */}
-        <Card title="Quick Stats" description="Your progress at a glance.">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Total assignments</span>
-              <span className="font-medium text-[#121f3e]">
-                {assignments.length}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Total subjects</span>
-              <span className="font-medium text-[#121f3e]">
-                {subjects.length}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Tasks completed</span>
-              <span className="font-medium text-[#121f3e]">
-                {completedTasks}/{totalTasks}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">High priority</span>
-              <span className="font-medium text-red-500">
-                {assignments.filter((a) => a.priority === "High").length}
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        {/* Priority Distribution */}
-        <Card title="By Priority" description="Assignments breakdown.">
-          <div className="grid grid-cols-3 gap-2 py-2">
-            {["High", "Medium", "Low"].map((priority) => {
-              const count = assignments.filter(
-                (a) => a.priority === priority
-              ).length;
-              return (
-                <div
-                  key={priority}
-                  className="flex flex-col items-center gap-1 rounded-xl bg-gray-50 p-3"
-                >
-                  <span
-                    className={[
-                      "text-2xl font-bold",
-                      priority === "High"
-                        ? "text-red-500"
-                        : priority === "Medium"
-                        ? "text-amber-500"
-                        : "text-gray-400",
-                    ].join(" ")}
+          <div className="flex-1">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {dailyTasks.length === 0 ? (
+                <p className="col-span-2 py-6 text-center text-sm text-gray-400">
+                  All tasks completed! Great job!
+                </p>
+              ) : (
+                dailyTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5"
                   >
-                    {count}
-                  </span>
-                  <span className="text-[10px] text-gray-500">{priority}</span>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-
-        {/* Priority Tasks */}
-        <Card
-          title="Priority Tasks"
-          description="High priority and due soon."
-          className="lg:col-span-2"
-        >
-          <div className="flex flex-col gap-2">
-            {assignments
-              .filter(
-                (a) => a.priority === "High" || a.deadline === "2026-02-02"
-              )
-              .slice(0, 4)
-              .map((assignment) => (
-                <div
-                  key={assignment.id}
-                  className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       className="h-4 w-4 rounded border-gray-300 text-[#121f3e] focus:ring-[#121f3e]"
                     />
-                    <div>
-                      <p className="text-sm font-medium text-[#121f3e]">
-                        {assignment.title}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#121f3e] truncate">
+                        {task.title}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {getSubjectName(assignment.subjectId)} · Due:{" "}
-                        {assignment.deadline}
+                      <p className="text-[11px] text-gray-500 truncate">
+                        {task.subject}
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={[
-                      "rounded-full px-2.5 py-1 text-[10px] font-medium",
-                      assignment.priority === "High"
-                        ? "bg-red-100 text-red-600"
-                        : assignment.priority === "Medium"
-                        ? "bg-amber-100 text-amber-600"
-                        : "bg-gray-100 text-gray-600",
-                    ].join(" ")}
-                  >
-                    {assignment.priority}
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Productivity Tip */}
+          <div className="mt-auto pt-4">
+            <div className="flex items-center gap-3 rounded-xl bg-amber-50 px-4 py-3">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                <svg
+                  className="h-4 w-4 text-amber-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                  />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-medium text-amber-800">
+                  {dailyTasks.length >= 6
+                    ? `Focus on 3-5 important tasks to maximize productivity.`
+                    : (() => {
+                        const tips = [
+                          "Start with your hardest task when your energy is highest.",
+                          "Break large tasks into smaller subtasks for better progress.",
+                          "Use the Pomodoro timer: 25 min focus, 5 min break.",
+                          "Review and plan tomorrow's tasks before ending your day.",
+                          "Group similar tasks together to maintain focus.",
+                          "Set realistic deadlines to reduce stress and improve quality.",
+                          "Take short breaks between tasks to recharge your focus.",
+                        ];
+                        return tips[new Date().getDay() % tips.length];
+                      })()}
+                </p>
+                <p className="text-[10px] text-amber-600/70 mt-0.5">
+                  Productivity tip
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Timer Link + Progress */}
+        <div className="lg:col-span-4 flex flex-col gap-5">
+          {/* Pomodoro Timer Link */}
+          <button
+            onClick={onNavigateToTimer}
+            className="flex items-center gap-4 rounded-2xl bg-[#121f3e] p-5 text-left text-white shadow-card transition hover:bg-[#1a2d54]"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Pomodoro Timer</p>
+              <p className="text-xs text-white/70">Start a focus session</p>
+            </div>
+            <svg
+              className="ml-auto h-5 w-5 text-white/50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
+
+          {/* Progress Loader */}
+          <div className="flex-1 flex flex-col rounded-2xl bg-white p-5 shadow-card">
+            <header className="mb-4">
+              <h2 className="text-sm font-semibold text-[#121f3e]">Progress</h2>
+              <p className="mt-0.5 text-xs text-gray-500">Completed tasks.</p>
+            </header>
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="relative flex h-24 w-24 items-center justify-center">
+                <svg className="h-24 w-24 -rotate-90 transform">
+                  <circle
+                    cx="48"
+                    cy="48"
+                    r="42"
+                    stroke="#f3f4f6"
+                    strokeWidth="8"
+                    fill="none"
+                  />
+                  <circle
+                    cx="48"
+                    cy="48"
+                    r="42"
+                    stroke="#121f3e"
+                    strokeWidth="8"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={`${progressPercent * 2.64} 264`}
+                    className="transition-all duration-500"
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center">
+                  <span className="text-2xl font-bold text-[#121f3e]">
+                    {progressPercent}%
+                  </span>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-4">
+                <div className="flex flex-col items-center">
+                  <span className="text-lg font-semibold text-[#121f3e]">
+                    {completedTasks}
+                  </span>
+                  <span className="text-[10px] text-gray-400">Done</span>
+                </div>
+                <div className="h-6 w-px bg-gray-200" />
+                <div className="flex flex-col items-center">
+                  <span className="text-lg font-semibold text-gray-400">
+                    {totalTasks - completedTasks}
+                  </span>
+                  <span className="text-[10px] text-gray-400">Left</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bar Chart - Weekly/Monthly Progress */}
+        <Card
+          title="Task Progress"
+          description="Completed vs total tasks."
+          className="lg:col-span-7"
+          actions={
+            <div className="flex rounded-lg border border-gray-200 p-0.5">
+              <button
+                onClick={() => setBarChartPeriod("weekly")}
+                className={[
+                  "rounded-md px-3 py-1 text-[10px] font-medium transition",
+                  barChartPeriod === "weekly"
+                    ? "bg-[#121f3e] text-white"
+                    : "text-gray-500 hover:text-gray-700",
+                ].join(" ")}
+              >
+                Weekly
+              </button>
+              <button
+                onClick={() => setBarChartPeriod("monthly")}
+                className={[
+                  "rounded-md px-3 py-1 text-[10px] font-medium transition",
+                  barChartPeriod === "monthly"
+                    ? "bg-[#121f3e] text-white"
+                    : "text-gray-500 hover:text-gray-700",
+                ].join(" ")}
+              >
+                Monthly
+              </button>
+            </div>
+          }
+        >
+          <div className="pt-2">
+            <div className="flex items-end justify-between gap-3 h-36">
+              {barChartData.map((item, index) => (
+                <div
+                  key={index}
+                  className="flex flex-1 flex-col items-center gap-2"
+                >
+                  <div className="relative flex h-28 w-full flex-col justify-end">
+                    <div
+                      className="w-full rounded-t bg-gray-100 transition-all duration-300"
+                      style={{ height: `${(item.total / maxBarValue) * 100}%` }}
+                    />
+                    <div
+                      className="absolute bottom-0 w-full rounded-t bg-[#121f3e] transition-all duration-300"
+                      style={{
+                        height: `${(item.completed / maxBarValue) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-gray-500">
+                    {item.label}
                   </span>
                 </div>
               ))}
-            {assignments.filter(
-              (a) => a.priority === "High" || a.deadline === "2026-02-02"
-            ).length === 0 && (
-              <p className="py-4 text-center text-sm text-gray-400">
-                No priority tasks at the moment.
-              </p>
-            )}
+            </div>
+            <div className="mt-3 flex justify-center gap-6">
+              <div className="flex items-center gap-2">
+                <div className="h-2.5 w-2.5 rounded bg-[#121f3e]" />
+                <span className="text-[11px] text-gray-500">Completed</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2.5 w-2.5 rounded bg-gray-200" />
+                <span className="text-[11px] text-gray-500">Total</span>
+              </div>
+            </div>
           </div>
         </Card>
 
-        {/* Progress by Subject */}
-        <Card title="By Subject" description="Progress breakdown.">
-          <div className="space-y-3">
-            {tasksBySubject.map((subject) => (
-              <div key={subject.id} className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
+        {/* Pie Chart - Tasks by Subject */}
+        <Card
+          title="By Subject"
+          description="Task distribution."
+          className="lg:col-span-5"
+          actions={
+            <div className="flex rounded-lg border border-gray-200 p-0.5">
+              <button
+                onClick={() => setPieChartPeriod("weekly")}
+                className={[
+                  "rounded-md px-3 py-1 text-[10px] font-medium transition",
+                  pieChartPeriod === "weekly"
+                    ? "bg-[#121f3e] text-white"
+                    : "text-gray-500 hover:text-gray-700",
+                ].join(" ")}
+              >
+                Weekly
+              </button>
+              <button
+                onClick={() => setPieChartPeriod("monthly")}
+                className={[
+                  "rounded-md px-3 py-1 text-[10px] font-medium transition",
+                  pieChartPeriod === "monthly"
+                    ? "bg-[#121f3e] text-white"
+                    : "text-gray-500 hover:text-gray-700",
+                ].join(" ")}
+              >
+                Monthly
+              </button>
+            </div>
+          }
+        >
+          <div className="flex items-center gap-5 py-2">
+            <div className="relative h-28 w-28 flex-shrink-0">
+              <svg
+                viewBox="0 0 100 100"
+                className="h-28 w-28 -rotate-90 transform"
+              >
+                {(() => {
+                  let cumulativePercent = 0;
+                  return subjectPercentages.map((subject) => {
+                    const percent = subject.percentage;
+                    const dashArray = `${percent * 3.14} 314`;
+                    const dashOffset = -cumulativePercent * 3.14;
+                    cumulativePercent += percent;
+                    return (
+                      <circle
+                        key={subject.id}
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="none"
+                        stroke={subject.color}
+                        strokeWidth="20"
+                        strokeDasharray={dashArray}
+                        strokeDashoffset={dashOffset}
+                      />
+                    );
+                  });
+                })()}
+                {totalSubjectTasks === 0 && (
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    stroke="#e5e7eb"
+                    strokeWidth="20"
+                  />
+                )}
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-base font-bold text-[#121f3e]">
+                  {totalSubjectTasks}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-1 flex-col gap-2">
+              {subjectPercentages.map((subject) => (
+                <div
+                  key={subject.id}
+                  className="flex items-center justify-between"
+                >
                   <div className="flex items-center gap-2">
                     <div
                       className="h-2.5 w-2.5 rounded-full"
                       style={{ backgroundColor: subject.color }}
                     />
-                    <span className="text-gray-600">{subject.name}</span>
+                    <span className="text-xs text-gray-600">
+                      {subject.name}
+                    </span>
                   </div>
-                  <span className="text-gray-400">
-                    {subject.completed}/{subject.total}
+                  <span className="text-xs font-medium text-gray-500">
+                    {subject.percentage}%
                   </span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${
-                        subject.total > 0
-                          ? (subject.completed / subject.total) * 100
-                          : 0
-                      }%`,
-                      backgroundColor: subject.color,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Upcoming Deadlines Table */}
-        <Card
-          title="Upcoming Deadlines"
-          description="All assignments overview."
-          className="lg:col-span-3"
-        >
-          <div className="overflow-hidden rounded-xl border border-gray-100">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Assignment</th>
-                  <th className="px-4 py-3 font-medium">Subject</th>
-                  <th className="px-4 py-3 font-medium">Deadline</th>
-                  <th className="px-4 py-3 font-medium">Priority</th>
-                  <th className="px-4 py-3 font-medium">Progress</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {assignments.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-6 text-center text-gray-400"
-                    >
-                      No assignments yet.
-                    </td>
-                  </tr>
-                ) : (
-                  assignments.map((assignment) => (
-                    <tr key={assignment.id} className="text-gray-700">
-                      <td className="px-4 py-3 font-medium">
-                        {assignment.title}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500">
-                        {getSubjectName(assignment.subjectId)}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500">
-                        {assignment.deadline}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={[
-                            "rounded-full px-2.5 py-1 text-[10px] font-medium",
-                            assignment.priority === "High"
-                              ? "bg-red-100 text-red-600"
-                              : assignment.priority === "Medium"
-                              ? "bg-amber-100 text-amber-600"
-                              : "bg-gray-100 text-gray-600",
-                          ].join(" ")}
-                        >
-                          {assignment.priority}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-gray-100">
-                            <div
-                              className="h-full rounded-full bg-[#121f3e]"
-                              style={{
-                                width: `${
-                                  assignment.tasks.length > 0
-                                    ? (assignment.tasks.filter(
-                                        (t) => t.completed
-                                      ).length /
-                                        assignment.tasks.length) *
-                                      100
-                                    : 0
-                                }%`,
-                              }}
-                            />
-                          </div>
-                          <span className="text-xs text-gray-400">
-                            {assignment.tasks.filter((t) => t.completed).length}
-                            /{assignment.tasks.length}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+              ))}
+              {subjects.length === 0 && (
+                <p className="text-xs text-gray-400">No subjects yet.</p>
+              )}
+            </div>
           </div>
         </Card>
       </div>
