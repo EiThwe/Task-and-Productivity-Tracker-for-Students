@@ -832,7 +832,7 @@ function DashboardView({
         {/* Bar Chart - Weekly/Monthly Progress */}
         <Card
           title="Task Progress"
-          description="Completed vs total tasks."
+          description="Completed tasks over time."
           className="lg:col-span-7"
           actions={
             <div className="flex rounded-lg border border-gray-200 p-0.5">
@@ -862,39 +862,84 @@ function DashboardView({
           }
         >
           <div className="pt-2">
-            <div className="flex items-end justify-between gap-3 h-36">
-              {barChartData.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex flex-1 flex-col items-center gap-2"
-                >
-                  <div className="relative flex h-28 w-full flex-col justify-end">
-                    <div
-                      className="w-full rounded-t bg-gray-100 transition-all duration-300"
-                      style={{ height: `${(item.total / maxBarValue) * 100}%` }}
-                    />
-                    <div
-                      className="absolute bottom-0 w-full rounded-t bg-[#121f3e] transition-all duration-300"
-                      style={{
-                        height: `${(item.completed / maxBarValue) * 100}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="text-[10px] text-gray-500">
-                    {item.label}
-                  </span>
+            {/* Y-Axis and Chart Area */}
+            <div className="flex">
+              {/* Y-Axis Labels */}
+              <div className="flex flex-col justify-between h-32 pr-2 text-right">
+                {[...Array(5)].map((_, i) => {
+                  const value = Math.round(maxBarValue - (maxBarValue / 4) * i);
+                  return (
+                    <span
+                      key={i}
+                      className="text-[10px] text-gray-400 leading-none"
+                    >
+                      {value}
+                    </span>
+                  );
+                })}
+              </div>
+
+              {/* Chart Area with Grid and Bars */}
+              <div className="flex-1 relative">
+                {/* Horizontal Grid Lines */}
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="border-t border-gray-100 w-full" />
+                  ))}
                 </div>
-              ))}
+
+                {/* Bars */}
+                <div className="flex items-end justify-between gap-2 h-32 relative z-10">
+                  {barChartData.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex flex-1 flex-col items-center group"
+                    >
+                      <div className="relative flex h-32 w-full flex-col justify-end items-center">
+                        {/* Tooltip */}
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
+                          <div className="bg-[#121f3e] text-white text-[10px] font-medium px-2 py-1 rounded shadow-lg whitespace-nowrap">
+                            {item.completed}{" "}
+                            {item.completed === 1 ? "task" : "tasks"}
+                          </div>
+                          <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-[#121f3e]" />
+                        </div>
+                        <div
+                          className="w-3/4 max-w-8 rounded-t bg-[#121f3e] transition-all duration-300 group-hover:bg-[#1a2d54] cursor-pointer"
+                          style={{
+                            height: `${(item.completed / maxBarValue) * 100}%`,
+                            minHeight: item.completed > 0 ? "4px" : "0",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="mt-3 flex justify-center gap-6">
-              <div className="flex items-center gap-2">
-                <div className="h-2.5 w-2.5 rounded bg-[#121f3e]" />
-                <span className="text-[11px] text-gray-500">Completed</span>
+
+            {/* X-Axis Labels */}
+            <div className="flex">
+              <div className="w-6 pr-2" /> {/* Spacer for Y-axis */}
+              <div className="flex-1 flex justify-between pt-2 border-t border-gray-200">
+                {barChartData.map((item, index) => (
+                  <div key={index} className="flex-1 text-center">
+                    <span className="text-[10px] text-gray-500">
+                      {item.label}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-2">
-                <div className="h-2.5 w-2.5 rounded bg-gray-200" />
-                <span className="text-[11px] text-gray-500">Total</span>
-              </div>
+            </div>
+
+            {/* Axis Labels */}
+            <div className="mt-3 flex justify-between items-center">
+              <span className="text-[10px] text-gray-400 italic">
+                Tasks Completed
+              </span>
+              <span className="text-[10px] text-gray-400 italic">
+                {barChartPeriod === "weekly" ? "Day of Week" : "Week of Month"}
+              </span>
             </div>
           </div>
         </Card>
